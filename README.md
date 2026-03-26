@@ -72,6 +72,8 @@ API REST para gestionar el inventario de libros de una librería: altas, consult
 
 ## Cómo ejecutar el proyecto (recomendado: Docker)
 
+**Arranca el motor de Docker antes del comando** (p. ej. abre **Docker Desktop** en macOS/Windows y espera a que indique que está en ejecución; en Linux, que el servicio `docker` esté activo). Si Docker no está ejecutándose, verás errores del tipo *Cannot connect to the Docker daemon*.
+
 En la raíz del repositorio:
 
 ```bash
