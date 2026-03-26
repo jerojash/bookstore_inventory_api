@@ -7,12 +7,14 @@ from rest_framework.response import Response
 from ..models import Book, ExchangeRate
 from ..serializers import BookSerializer
 from ..utils.fetch_exchange_rate import fetch_exchange_rate
+from ..utils.pagination import OptionalPageNumberPagination
 
 
 # Services for the Book model.
 class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    pagination_class = OptionalPageNumberPagination
 
     _profit_multiplier = Decimal("1.40")
     _profit_margin = Decimal("0.40")
