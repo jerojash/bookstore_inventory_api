@@ -4,8 +4,9 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from ..models import Book
+from ..models import Book, ExchangeRate
 from ..serializers import BookSerializer
+from ..utils.fetch_exchange_rate import fetch_exchange_rate
 
 
 # Services for the Book model.
@@ -16,6 +17,7 @@ class BookViewSet(viewsets.ModelViewSet):
     _profit_multiplier = Decimal("1.40")
     _profit_margin = Decimal("0.40")
     _two_places = Decimal("0.01")
+    _default_exchange_rate = Decimal("3.45")
 
 
     @action(detail=False, methods=["get"], url_path="search")
@@ -59,24 +61,45 @@ class BookViewSet(viewsets.ModelViewSet):
 
         currency_code = request.data.get("currency")
 
+
         if not currency_code:
             return Response(
                 {"error": "currency is required in the request body"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Mock exchange rate for now
-        exchange_rate = Decimal("400")
+        currency_code = str(currency_code).upper()
 
+        # Fetch the exchange rate.
+        try:
+            # Try to fetch the exchange rate from the API
+            exchange_rate = fetch_exchange_rate(currency_code)
+
+            # Store the exchange rate in the database.
+            ExchangeRate.objects.update_or_create(
+                currency_code=currency_code,
+                defaults={"rate": exchange_rate},
+            )
+
+        except Exception:
+            # If the API fails, try the last stored rate from the database.
+            cached = ExchangeRate.objects.filter(currency_code=currency_code).first()
+
+            # If the database fails, use the default exchange rate.
+            exchange_rate = cached.rate if cached else self._default_exchange_rate
+
+        # Calculate the local cost.
         local_cost = (book.cost_usd * exchange_rate).quantize(
             self._two_places, rounding=ROUND_HALF_UP
         )
 
+        # Calculate the selling price.
         selling_price = (local_cost * self._profit_multiplier).quantize(
             self._two_places, rounding=ROUND_HALF_UP
         )
 
         book.selling_price_local = selling_price
+
 
         book.save(update_fields=["selling_price_local", "updated_at"])
 
